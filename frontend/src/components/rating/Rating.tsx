@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState} from 'react';
 import '@patternfly/react-core/dist/styles/base.css';
 import './index.css';
 import {
@@ -16,10 +16,8 @@ import {fetchTaskName} from
 import {API_URL} from '../../constants';
 import {OkIcon} from '@patternfly/react-icons';
 
-let prevStar:number =0;
-let newStar:number =0;
+let updatedRating:number =0;
 const Rating: React.FC = (props:any) => {
-  const [rating, setRating] = useState([]);
   const [stars, setStars]=useState(0);
   const [c, setC]=useState(0);
   const [avgRating, setAvgRating] = useState(0.0);
@@ -35,27 +33,20 @@ const Rating: React.FC = (props:any) => {
     setAvgRating(props.TaskName['rating'].toFixed(1));
   }
   const {taskId} = useParams();
-  const prevStars={
-    user_id: Number(localStorage.getItem('usetrID')),
-    resource_id: Number(taskId),
-  };
-  // display previous rating for perticular user
+
+  // Display rating for particular user
   if (count ===0 ) {
-    fetch(`${API_URL}/stars`, {
-      method: 'POST',
-      body: JSON.stringify(prevStars),
-    }).then((res)=>res.json()).then((data)=>{
-      setStars(Number(data['stars']));
+    fetch(`${API_URL}/resource/${Number(taskId)}/rating`, {
+      method: 'GET',
+      headers: new Headers({
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      }),
+    }).then((res)=>res.json()).then((response)=>{
+      setStars(Number(response.data.rating));
     });
     setCount((count) => count+1);
   }
-  // api call for getting number of 1,2,3,4,5 star of a task
-  useEffect(() =>{
-    fetch(`${API_URL}/rating/`+taskId)
-        .then((res) => res.json())
-        .then((rating) => setRating(rating));
-    // eslint-disable-next-line
-  }, []);
   // for showing number of star given by user
   switch (stars) {
     case 5: setFivechecked(true);
@@ -75,41 +66,24 @@ const Rating: React.FC = (props:any) => {
       setStars(7);
       break;
   }
-  // for displaying number of 1,2,3.. * in %
-  if (rating!==undefined) {
-    const arr = Array.from(Object.values(rating));
-    let totalstar = (arr[2]+arr[3]+arr[4]+arr[5]+arr[6]);
-    if (totalstar ===0 ) totalstar=totalstar+1;
-  }
   let login: any = '';
-  // sending rating information to backend
-  const postData=(ratingData:any)=>{
-    fetch(`${API_URL}/rating`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(ratingData),
-    }).then((res) => res.json())
-        .then((data) =>
-          setAvgRating(data['average'].toFixed(1)));
-  };
   const putData=(ratingData:any) =>{
-    fetch(`${API_URL}/rating`, {
+    fetch(`${API_URL}/resource/${taskId}/rating`, {
       method: 'PUT',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
       },
       body: JSON.stringify(ratingData),
     }).then((res) => res.json())
-        .then((data) =>
-          setAvgRating(data['average'].toFixed(1)));
+        .then((response) => {
+          console.log(response);
+          setAvgRating(response.data.avg_rating);
+        });
   };
 
-
-  const sendrating = (event:any) =>{
+  const updateRating = (event:any) =>{
     if (event.target.value !== undefined) {
       switch (Number(event.target.value)) {
         case 1:
@@ -150,33 +124,17 @@ const Rating: React.FC = (props:any) => {
 
           break;
       }
-      // condition for first time rating rate by user
-      if ( (stars ===0) && (prevStar === 0) && (newStar === 0)) {
-        newStar = event.target.value;
-        const ratingData ={
-          'user_id': Number(localStorage.getItem('usetrID')),
-          'resource_id': Number(taskId),
-          'stars': Number(newStar),
-          'prev_stars': Number(prevStar),
-        };
-        postData(ratingData);
-      } else {
-        prevStar=newStar;
-        newStar=event.target.value;
-        const ratingData ={
-          'user_id': Number(localStorage.getItem('usetrID')),
-          'resource_id': Number(taskId),
-          'stars': Number(newStar),
-          'prev_stars': Number(prevStar),
-        };
+      updatedRating=event.target.value;
+      const ratingData ={
+        'rating': Number(updatedRating),
+      };
 
-        putData(ratingData);
-      }
+      putData(ratingData);
     }
   };
   // for checking user is login or not
   if (props.isAuthenticated === true) {
-    login = <form onClick = {sendrating}>
+    login = <form onClick = {updateRating}>
       <ul className="rate-area" >
         <input type="radio" id="5-star"
           name="rating" value="5" checked={fivechecked}/>

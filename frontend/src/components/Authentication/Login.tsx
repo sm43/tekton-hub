@@ -15,19 +15,16 @@ import {GH_CLIENT_ID} from '../../constants';
 const Login:React.FC=()=>{
   const history = useHistory();
   const onSuccess=(response)=>{
-    console.log(response);
-    const code={
-      token: response.code.toString(),
-    };
+    const authorizeToken= response.code.toString();
     fetch(`${API_URL}/oauth/redirect`, {
       method: 'POST',
-      body: JSON.stringify(code),
+      headers: new Headers({
+        'Authorization': authorizeToken,
+      }),
     })
         .then((res)=>res.json())
-        .then((data)=>{
-          console.log(data);
-          localStorage.setItem('token', data['token']);
-          localStorage.setItem('usetrID', data['user_id']);
+        .then((response) =>{
+          localStorage.setItem('token', response.data.token);
           checkAuthentication();
           history.push('/');
           window.location.reload();
